@@ -1640,6 +1640,7 @@ module.exports = class phemex extends Exchange {
     }
 
     parseSwapOrder (order, market = undefined) {
+
         //
         //     {
         //         "bizError":0,
@@ -1686,13 +1687,14 @@ module.exports = class phemex extends Exchange {
         }
         const status = this.parseOrderStatus (this.safeString (order, 'ordStatus'));
         const side = this.safeStringLower (order, 'side');
-        const type = this.parseOrderType (this.safeString (order, 'orderType'));
-        const price = this.fromEp (this.safeFloat (order, 'priceEp'), market);
+        const type = this.parseOrderType (this.safeString (order, 'orderType') || this.safeString (order, 'ordType'));
+        const price = this.fromEp (this.safeFloat (order, 'priceEp'), market) || undefined;
+
         const amount = this.safeFloat (order, 'orderQty');
         const filled = this.safeFloat (order, 'cumQty');
         const remaining = this.safeFloat (order, 'leavesQty');
         const timestamp = this.safeIntegerProduct (order, 'actionTimeNs', 0.000001);
-        const cost = this.safeFloat (order, 'cumValue');
+        const cost = this.fromEr (this.safeFloat (order, 'cumValueEv'), market);
         let lastTradeTimestamp = this.safeIntegerProduct (order, 'transactTimeNs', 0.000001);
         if (lastTradeTimestamp === 0) {
             lastTradeTimestamp = undefined;
@@ -1701,6 +1703,16 @@ module.exports = class phemex extends Exchange {
         if ((symbol === undefined) && (market !== undefined)) {
             symbol = market['symbol'];
         }
+        
+        let fee = undefined;
+        const feeCost = this.fromEr (this.safeFloat (order, 'execFeeEv'), market);
+        if (feeCost !== undefined) {
+            fee = {
+                'cost': feeCost,
+                'currency': market.inverse ? market.base : market.quote,
+            };
+        }
+
         return {
             'info': order,
             'id': id,
@@ -1713,13 +1725,14 @@ module.exports = class phemex extends Exchange {
             'side': side,
             'price': price,
             'amount': amount,
-            'filled': filled,
-            'remaining': remaining,
-            'cost': cost,
-            'average': undefined,
+            'filled': filled,           // cumQty
+            'remaining': remaining,     // leavesQty
+            'cost': cost,               // cumValue
+            // 'average': undefined,
             'status': status,
-            'fee': undefined,
-            'trades': undefined,
+            // 'fee': undefined, //Defines cumFee. Not avail on Phemex Swap
+            'execFee': fee, //Addition to CCXT
+            // 'trades': undefined,
         };
     }
 
