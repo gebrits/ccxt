@@ -1641,41 +1641,61 @@ module.exports = class phemex extends Exchange {
 
     parseSwapOrder (order, market = undefined) {
 
-        //
-        //     {
-        //         "bizError":0,
-        //         "orderID":"7a1ad384-44a3-4e54-a102-de4195a29e32",
-        //         "clOrdID":"",
-        //         "symbol":"ETHUSD",
-        //         "side":"Buy",
-        //         "actionTimeNs":1592668973945065381,
-        //         "transactTimeNs":0,
-        //         "orderType":"Market",
-        //         "priceEp":2267500,
-        //         "price":226.75000000,
-        //         "orderQty":1,
-        //         "displayQty":0,
-        //         "timeInForce":"ImmediateOrCancel",
-        //         "reduceOnly":false,
-        //         "closedPnlEv":0,
-        //         "closedPnl":0E-8,
-        //         "closedSize":0,
-        //         "cumQty":0,
-        //         "cumValueEv":0,
-        //         "cumValue":0E-8,
-        //         "leavesQty":1,
-        //         "leavesValueEv":11337,
-        //         "leavesValue":1.13370000,
-        //         "stopDirection":"UNSPECIFIED",
-        //         "stopPxEp":0,
-        //         "stopPx":0E-8,
-        //         "trigger":"UNSPECIFIED",
-        //         "pegOffsetValueEp":0,
-        //         "execStatus":"PendingNew",
-        //         "pegPriceType":"UNSPECIFIED",
-        //         "ordStatus":"Created"
-        //     }
-        //
+        // {
+        //   action: 'New',
+        //   actionBy: 'ByUser',
+        //   actionTimeNs: 1597773419058775600,
+        //   addedSeq: 930017740,
+        //   bonusChangedAmountEv: 0,
+        //   clOrdID: '730f1077-110d-2187-46f4-d5350af6ae8a',
+        //   closedPnlEv: -25,
+        //   closedSize: 10,
+        //   code: 0,
+        //   cumQty: 10,
+        //   cumValueEv: 212025,
+        //   curAccBalanceEv: 5507592,
+        //   curAssignedPosBalanceEv: 0,
+        //   curBonusBalanceEv: 0,
+        //   curLeverageEr: 500000000,
+        //   curPosSide: 'None',
+        //   curPosSize: 0,
+        //   curPosTerm: 60,
+        //   curPosValueEv: 0,
+        //   curRiskLimitEv: 5000000000,
+        //   currency: 'USD',
+        //   cxlRejReason: 0,
+        //   displayQty: 0,
+        //   execFeeEv: 160,
+        //   execID: '427e2f25-de95-5379-a2fb-51a5fbb80d87',
+        //   execInst: 'CloseOnTrigger',
+        //   execPriceEp: 4240500,
+        //   execQty: 10,
+        //   execSeq: 930017740,
+        //   execStatus: 'TakerFill',
+        //   execValueEv: 212025,
+        //   feeRateEr: 75000,
+        //   lastLiquidityInd: 'RemovedLiquidity',
+        //   leavesQty: 0,
+        //   leavesValueEv: 0,
+        //   message: 'No error',
+        //   ordStatus: 'Filled',
+        //   ordType: 'Market',
+        //   orderID: '75019e41-e2bf-48c7-bd77-674446bb2f3f',
+        //   orderQty: 10,
+        //   pegOffsetValueEp: 0,
+        //   priceEp: 3388000,
+        //   relatedPosTerm: 59,
+        //   relatedReqNum: 7304,
+        //   side: 'Sell',
+        //   stopLossEp: 0,
+        //   stopPxEp: 0,
+        //   symbol: 'ETHUSD',
+        //   takeProfitEp: 0,
+        //   timeInForce: 'ImmediateOrCancel',
+        //   tradeType: 'Trade',
+        //   transactTimeNs: 1597773419062001400,
+        //   userID: 739267
+        // }
         const id = this.safeString (order, 'orderID');
         let clientOrderId = this.safeString (order, 'clOrdID');
         if ((clientOrderId !== undefined) && (clientOrderId.length < 1)) {
@@ -1685,6 +1705,7 @@ module.exports = class phemex extends Exchange {
         if (marketId in this.markets_by_id) {
             market = this.markets_by_id[marketId];
         }
+
         const status = this.parseOrderStatus (this.safeString (order, 'ordStatus'));
         const side = this.safeStringLower (order, 'side');
         const type = this.parseOrderType (this.safeString (order, 'orderType') || this.safeString (order, 'ordType'));
@@ -1694,18 +1715,12 @@ module.exports = class phemex extends Exchange {
         const filled = this.safeFloat (order, 'cumQty');
         const remaining = this.safeFloat (order, 'leavesQty');
         const timestamp = this.safeIntegerProduct (order, 'actionTimeNs', 0.000001);
-        const cost = this.fromEr (this.safeFloat (order, 'cumValueEv'), market);
-        let lastTradeTimestamp = this.safeIntegerProduct (order, 'transactTimeNs', 0.000001);
-        if (lastTradeTimestamp === 0) {
-            lastTradeTimestamp = undefined;
-        }
-        let symbol = undefined;
-        if ((symbol === undefined) && (market !== undefined)) {
-            symbol = market['symbol'];
-        }
+        const cost = this.safeFloat (order, 'cumValueEv') * Math.pow (10, -4); // Precision etc is not defined correctly. At least not for Linear Alt Swaps
+        const lastTradeTimestamp = this.safeIntegerProduct (order, 'transactTimeNs', 0.000001) || undefined; // 0 => undefined
+        const symbol = (market !== undefined) ? market['symbol'] : undefined;
         
         let fee = undefined;
-        const feeCost = this.fromEr (this.safeFloat (order, 'execFeeEv'), market);
+        const feeCost = this.safeFloat (order, 'execFeeEv') * Math.pow (10, -4)
         if (feeCost !== undefined) {
             fee = {
                 'cost': feeCost,
