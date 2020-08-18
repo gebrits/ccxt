@@ -1709,7 +1709,7 @@ module.exports = class phemex extends Exchange {
         const status = this.parseOrderStatus (this.safeString (order, 'ordStatus'));
         const side = this.safeStringLower (order, 'side');
         const type = this.parseOrderType (this.safeString (order, 'orderType') || this.safeString (order, 'ordType'));
-        const price = this.fromEp (this.safeFloat (order, 'priceEp'), market) || undefined;
+        const price = this.fromEp (this.safeFloat (order, 'execPriceEp'), market) || undefined;
 
         const amount = this.safeFloat (order, 'orderQty');
         const filled = this.safeFloat (order, 'cumQty');
